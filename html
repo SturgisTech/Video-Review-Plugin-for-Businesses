@@ -1,0 +1,72 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Review Plugin</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+</head>
+<body>
+    <div id="app">
+        <h2>Leave a Video Review</h2>
+        <video id="video" width="400" controls></video>
+        <button @click="startRecording">Record</button>
+        <button @click="stopRecording">Stop</button>
+        <button @click="uploadVideo">Submit Video</button>
+        <p v-if="isRecording">Recording...</p>
+        <p v-if="message">{{ message }}</p>
+    </div>
+
+    <script>
+        // Vue.js code for handling video recording and submission
+        new Vue({
+            el: '#app',
+            data: {
+                mediaRecorder: null,
+                recordedChunks: [],
+                isRecording: false,
+                message: ''
+            },
+            methods: {
+                startRecording() {
+                    navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+                        this.mediaRecorder = new MediaRecorder(stream);
+                        this.mediaRecorder.ondataavailable = event => {
+                            this.recordedChunks.push(event.data);
+                        };
+                        this.mediaRecorder.onstop = () => {
+                            const blob = new Blob(this.recordedChunks, { type: 'video/webm' });
+                            this.uploadVideo(blob);
+                        };
+                        this.mediaRecorder.start();
+                        this.isRecording = true;
+                    });
+                },
+                stopRecording() {
+                    this.mediaRecorder.stop();
+                    this.isRecording = false;
+                },
+                async uploadVideo(videoBlob) {
+                    try {
+                        const formData = new FormData();
+                        formData.append('video', videoBlob, 'video.webm');
+                        const response = await fetch('/api/videos', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        if (response.ok) {
+                            this.message = 'Video submitted for approval!';
+                        } else {
+                            this.message = 'Error submitting video.';
+                        }
+                    } catch (error) {
+                        console.error('Error uploading video:', error);
+                        this.message = 'Error uploading video.';
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
